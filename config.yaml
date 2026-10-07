@@ -1,0 +1,9 @@
+checks:
+  day_over_day:
+    enabled: true
+    threshold_pct: 1.0
+    overrides: { SP500: 1.5 }
+  week_over_week:
+    enabled: true
+    threshold_pct: 5.0
+    overrides: {}

@@ -1,0 +1,36 @@
+package main
+
+import (
+	"log"
+
+	"github.com/hirdrwit/oncorp/internal/config"
+	icsv "github.com/hirdrwit/oncorp/internal/csv"
+	"github.com/hirdrwit/oncorp/internal/runner"
+)
+
+const (
+	INPUT_DIR   = "input"
+	CONFIG_FILE = "config.yaml"
+)
+
+func main() {
+
+	store, err := icsv.LoadDir(INPUT_DIR)
+	if err != nil {
+		log.Fatal("unable to load csv input, %w", err)
+	}
+
+	cfg, err := config.Load(CONFIG_FILE)
+	if err != nil {
+		log.Fatal("unable to load config %w", err)
+	}
+
+	runner, err := runner.New(store, *cfg)
+	if err != nil {
+		log.Fatal("unable to create new runner %w", err)
+	}
+
+	if err = runner.Execute(); err != nil {
+		log.Fatal("error executing script %w", err)
+	}
+}
