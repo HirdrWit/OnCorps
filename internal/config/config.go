@@ -16,11 +16,10 @@ type Checks struct {
 	WeekOverWeek Check `yaml:"week_over_week"`
 }
 
-type Threshold float64
 type Check struct {
-	Enabled      bool                 `yaml:"enabled"`
-	ThresholdPct Threshold            `yaml:"threshold_pct"`
-	Overrides    map[string]Threshold `yaml:"overrides"`
+	Enabled      bool               `yaml:"enabled"`
+	ThresholdPct float64            `yaml:"threshold_pct"`
+	Overrides    map[string]float64 `yaml:"overrides"`
 }
 
 func Load(filename string) (*Settings, error) {

@@ -17,20 +17,20 @@ func main() {
 
 	store, err := icsv.LoadDir(INPUT_DIR)
 	if err != nil {
-		log.Fatal("unable to load csv input, %w", err)
+		log.Fatalf("unable to load csv input, %v", err)
 	}
 
 	cfg, err := config.Load(CONFIG_FILE)
 	if err != nil {
-		log.Fatal("unable to load config %w", err)
+		log.Fatalf("unable to load config %v", err)
 	}
 
 	runner, err := runner.New(store, *cfg)
 	if err != nil {
-		log.Fatal("unable to create new runner %w", err)
+		log.Fatalf("unable to create new runner %v", err)
 	}
 
 	if err = runner.Execute(); err != nil {
-		log.Fatal("error executing script %w", err)
+		log.Fatalf("error executing script %v", err)
 	}
 }
