@@ -68,6 +68,11 @@ func LoadDir(dir string) (*Store, error) {
 
 const dateLayout = "2006-01-02"
 
+// read parses the CSV file at path. The second header column gives the
+// ticker name. Each row must have a date and a value that is blank or
+// greater than 0. It returns the rows sorted by date.
+//
+// AI-assisted (Claude Code): doc comment.
 func read(path string) (*File, error) {
 	file, err := os.Open(path)
 	if err != nil {

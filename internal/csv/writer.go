@@ -29,6 +29,9 @@ type Result struct {
 	Direction       string // "up" or "down"
 }
 
+// record formats r as one CSV row, in the column order of csvHeader.
+//
+// AI-assisted (Claude Code): doc comment.
 func (r Result) record() []string {
 	const dateFmt = "2006-01-02"
 	return []string{
@@ -98,6 +101,9 @@ func (rw *ResultWriter) Write(results []Result) error {
 	return rw.w.Error()
 }
 
+// Close flushes the buffered rows and closes the file.
+//
+// AI-assisted (Claude Code): doc comment.
 func (rw *ResultWriter) Close() error {
 	rw.w.Flush()
 	if err := rw.w.Error(); err != nil {

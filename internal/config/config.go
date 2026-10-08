@@ -11,15 +11,25 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Settings is the decoded configuration for all checks.
+//
+// AI-assisted (Claude Code): doc comment.
 type Settings struct {
 	Checks Checks
 }
 
+// Checks holds the configuration for each check.
+//
+// AI-assisted (Claude Code): doc comment.
 type Checks struct {
 	DayOverDay   Check
 	WeekOverWeek Check
 }
 
+// Check is the configuration for one check. Overrides maps a ticker to a
+// threshold that replaces ThresholdPct for that ticker.
+//
+// AI-assisted (Claude Code): doc comment.
 type Check struct {
 	Enabled      bool
 	ThresholdPct float64
@@ -32,11 +42,18 @@ type fileSettings struct {
 	Checks *fileChecks `yaml:"checks"`
 }
 
+// fileChecks mirrors the checks key in config.yaml.
+//
+// AI-assisted (Claude Code): doc comment.
 type fileChecks struct {
 	DayOverDay   *fileCheck `yaml:"day_over_day"`
 	WeekOverWeek *fileCheck `yaml:"week_over_week"`
 }
 
+// fileCheck mirrors one check in config.yaml. A nil field means that the
+// key is missing.
+//
+// AI-assisted (Claude Code): doc comment.
 type fileCheck struct {
 	Enabled      *bool              `yaml:"enabled"`
 	ThresholdPct *float64           `yaml:"threshold_pct"`
@@ -67,6 +84,10 @@ func Load(filename string) (*Settings, error) {
 	return settings, nil
 }
 
+// settings converts f into Settings. It returns an error for each
+// required key that is missing.
+//
+// AI-assisted (Claude Code): doc comment.
 func (f fileSettings) settings() (*Settings, error) {
 	if f.Checks == nil {
 		return nil, errors.New(`missing required key "checks"`)
@@ -79,6 +100,10 @@ func (f fileSettings) settings() (*Settings, error) {
 	return &Settings{Checks: Checks{DayOverDay: dod, WeekOverWeek: wow}}, nil
 }
 
+// check converts c into a Check. path is the YAML key path for error
+// messages. It returns an error for each required key that is missing.
+//
+// AI-assisted (Claude Code): doc comment.
 func (c *fileCheck) check(path string) (Check, error) {
 	if c == nil {
 		return Check{}, fmt.Errorf("missing required key %q", path)
@@ -109,6 +134,10 @@ func (s *Settings) Validate(tickers []string) error {
 	)
 }
 
+// validate returns an error for each threshold, override, or override
+// ticker in c that is not valid. path is the YAML key path for error messages.
+//
+// AI-assisted (Claude Code): doc comment.
 func (c Check) validate(path string, tickers []string) error {
 	var errs []error
 	// !(x > 0) rather than x <= 0 so that NaN is rejected too.

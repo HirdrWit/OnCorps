@@ -17,12 +17,20 @@ var (
 	outDir  = flag.String("out", "output", "directory for result CSVs")
 )
 
+// main runs the program. If run returns an error, main logs it and exits.
+//
+// AI-assisted (Claude Code): doc comment.
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
+// run loads the configuration and the input CSV files, runs the enabled
+// checks, and writes the results to a new CSV file. It also returns any
+// error from closing the results file.
+//
+// AI-assisted (Claude Code): doc comment.
 func run() (err error) {
 	flag.Parse()
 
