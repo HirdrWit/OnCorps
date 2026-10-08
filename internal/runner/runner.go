@@ -94,6 +94,7 @@ func (r *Runner) runChecker(name string, cfg config.Check, backFunc lookback) []
 			previous := file.Rows[comparisonIndex]
 			change := today.Value - previous.Value
 			percentChange := change / previous.Value * 100
+
 			if math.Abs(percentChange) > threshold {
 				thisResult := icsv.Result{
 					Ticker:          file.Name,
@@ -130,18 +131,24 @@ const maxGapDays = 4
 // AI-assisted (Claude Code): doc comment.
 func calendarBack(years, months, days int) lookback {
 	return func(rows []icsv.Row, i int) (int, bool) {
+
 		target := rows[i].Date.AddDate(-years, -months, -days)
 		oldest := target.AddDate(0, 0, -maxGapDays)
+
 		for j, row := range slices.Backward(rows[:i]) {
+
 			if row.Date.After(target) {
 				continue
 			}
+
 			if row.Date.Before(oldest) {
 				return -1, false
 			}
+
 			if row.Valid {
 				return j, true
 			}
+
 		}
 		return -1, false
 	}
