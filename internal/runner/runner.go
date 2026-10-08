@@ -1,48 +1,120 @@
 package runner
 
 import (
+	"errors"
 	"fmt"
-	"time"
+	"log"
+	"math"
 
 	"github.com/hirdrwit/oncorp/internal/config"
 	icsv "github.com/hirdrwit/oncorp/internal/csv"
 )
 
 type Runner struct {
-	Data   *icsv.Store
-	Config *config.Settings
+	Data        *icsv.Store
+	ResultWrite *icsv.ResultWriter
+	Config      *config.Settings
 }
 
-type flag struct {
-	Ticker          string
-	Check           string // e.g. "day_over_day", "week_over_week"
-	PrevDate        time.Time
-	CurrDate        time.Time
-	PrevValue       float64
-	CurrValue       float64
-	AbsChange       float64
-	PctChange       float64
-	ThresholdPct    float64
-	ThresholdSource string // "default" or "override"
-	Direction       string // "up" or "down"
+func New(data *icsv.Store, rw *icsv.ResultWriter, cfg config.Settings) (*Runner, error) {
+	runner := &Runner{
+		Data:        data,
+		ResultWrite: rw,
+		Config:      &cfg,
+	}
+	return runner, nil
 }
 
-func New(data *icsv.Store, cfg config.Settings) (*Runner, error) {
-	return &Runner{Data: data, Config: &cfg}, nil
-}
+// lookback returns the index of the row to compare rows[i] against.
+type lookback func(rows []icsv.Row, i int) (int, bool)
 
 func (r *Runner) Execute() error {
+	checks := []struct {
+		name string
+		cfg  config.Check
+		back lookback
+	}{
+		{"day_over_day", r.Config.Checks.DayOverDay, calendarBack(0, 0, 1)},
+		{"week_over_week", r.Config.Checks.WeekOverWeek, calendarBack(0, 0, 7)},
+	}
 
-	flags := []flag{}
-	if r.Config.Checks.DayOverDay.Enabled {
-		flags = append(flags, r.dayOverDay()...)
-	}
-	if r.Config.Checks.WeekOverWeek.Enabled {
-		//		r.weekOverWeek()
+	errs := make([]error, 0)
+	for _, c := range checks {
+		if c.cfg.Enabled {
+			results := r.runChecker(c.name, c.cfg, c.back)
+			if err := r.ResultWrite.Write(results); err != nil {
+				log.Printf("write %s results: %v", c.name, err)
+				errs = append(errs, fmt.Errorf("write %s: %w", c.name, err))
+			}
+		}
 	}
 
-	for _, flag := range flags {
-		fmt.Println(flag)
+	log.Printf("completed. path: %s", r.ResultWrite.Path)
+	return errors.Join(errs...)
+}
+
+func (r *Runner) runChecker(name string, cfg config.Check, backFunc lookback) []icsv.Result {
+	result := []icsv.Result{}
+	for _, file := range r.Data.Files {
+		source := "default"
+		threshold := cfg.ThresholdPct
+		if override, ok := cfg.Overrides[file.GetName()]; ok {
+			threshold = override
+			source = "override"
+		}
+
+		fileResult := []icsv.Result{}
+		rows := file.GetRows()
+		for i, today := range rows {
+			if !today.Valid {
+				continue
+			}
+
+			comparisonIndex, ok := backFunc(rows, i)
+			if !ok {
+				continue
+			}
+
+			previous := rows[comparisonIndex]
+			change := today.Value - previous.Value
+			percentChange := change / previous.Value * 100
+			if math.Abs(percentChange) > threshold {
+				thisResult := icsv.Result{
+					Ticker:          file.GetName(),
+					Check:           name,
+					PrevDate:        previous.Date,
+					CurrDate:        today.Date,
+					PrevValue:       previous.Value,
+					CurrValue:       today.Value,
+					AbsChange:       change,
+					PctChange:       percentChange,
+					ThresholdPct:    threshold,
+					ThresholdSource: source,
+					Direction:       getDirection(percentChange),
+				}
+				fileResult = append(fileResult, thisResult)
+			}
+		}
+		result = append(result, fileResult...)
 	}
-	return nil
+	return result
+}
+
+func calendarBack(years, months, days int) lookback {
+	return func(rows []icsv.Row, i int) (int, bool) {
+		target := rows[i].Date.AddDate(years*-1, months*-1, days*-1)
+		for j := i - 1; j >= 0; j-- {
+			if !rows[j].Date.After(target) && rows[j].Valid {
+				return j, true
+			}
+		}
+		return -1, false
+	}
+}
+
+func getDirection(v float64) string {
+	if v < 0 {
+		return "down"
+	}
+	return "up"
 }

@@ -10,6 +10,7 @@ import (
 
 const (
 	INPUT_DIR   = "input"
+	OUTPUT_DIR  = "output"
 	CONFIG_FILE = "config.yaml"
 )
 
@@ -20,12 +21,18 @@ func main() {
 		log.Fatalf("unable to load csv input, %v", err)
 	}
 
+	resultWritter, err := icsv.NewResultWriter(OUTPUT_DIR)
+	if err != nil {
+		log.Fatalf("unable to create response writer %v", err)
+	}
+	defer resultWritter.Close()
+
 	cfg, err := config.Load(CONFIG_FILE)
 	if err != nil {
 		log.Fatalf("unable to load config %v", err)
 	}
 
-	runner, err := runner.New(store, *cfg)
+	runner, err := runner.New(store, resultWritter, *cfg)
 	if err != nil {
 		log.Fatalf("unable to create new runner %v", err)
 	}

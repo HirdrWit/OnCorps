@@ -25,9 +25,23 @@ type File struct {
 	Rows []Row
 }
 
-// Store holds all CSV files loaded from a folder, keyed by file name.
+func (f *File) GetName() string {
+	if f != nil {
+		return f.Name
+	}
+	return ""
+}
+
+func (f *File) GetRows() []Row {
+	if f != nil {
+		return f.Rows
+	}
+	return []Row{}
+}
+
+// Store holds all CSV files loaded from a folder, keyed by ticket name.
 type Store struct {
-	Files map[string]*File
+	Files []*File
 }
 
 // LoadDir reads every .csv file in dir (non-recursive) into a Store.
@@ -37,7 +51,7 @@ func LoadDir(dir string) (*Store, error) {
 		return nil, fmt.Errorf("read dir %q: %w", dir, err)
 	}
 
-	store := &Store{Files: make(map[string]*File)}
+	store := &Store{Files: make([]*File, 0, len(entries))}
 
 	for _, e := range entries {
 		if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".csv") {
@@ -48,7 +62,7 @@ func LoadDir(dir string) (*Store, error) {
 		if err != nil {
 			return nil, err
 		}
-		store.Files[f.Name] = f
+		store.Files = append(store.Files, f)
 	}
 
 	return store, nil
