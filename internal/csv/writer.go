@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -47,10 +46,9 @@ func (r Result) record() []string {
 	}
 }
 
-// ResultWriter writes results to a new CSV file for each run. It is safe for
-// concurrent use, so every runner can share a single instance.
+// ResultWriter writes results to a new CSV file for each run. It is not
+// safe for concurrent use; checks run one after another and share one writer.
 type ResultWriter struct {
-	mu   sync.Mutex
 	f    *os.File
 	w    *csv.Writer
 	Path string
@@ -89,12 +87,8 @@ func NewResultWriter(dir string) (*ResultWriter, error) {
 	return rw, nil
 }
 
-// Write appends all results as rows. A runner's batch is written together,
-// so rows from different runners never interleave mid-batch.
+// Write appends all results as rows and flushes them to the file.
 func (rw *ResultWriter) Write(results []Result) error {
-	rw.mu.Lock()
-	defer rw.mu.Unlock()
-
 	for _, r := range results {
 		if err := rw.w.Write(r.record()); err != nil {
 			return fmt.Errorf("write record for %s: %w", r.Ticker, err)
@@ -105,9 +99,6 @@ func (rw *ResultWriter) Write(results []Result) error {
 }
 
 func (rw *ResultWriter) Close() error {
-	rw.mu.Lock()
-	defer rw.mu.Unlock()
-
 	rw.w.Flush()
 	if err := rw.w.Error(); err != nil {
 		rw.f.Close()

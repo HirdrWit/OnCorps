@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -25,23 +26,20 @@ type File struct {
 	Rows []Row
 }
 
-func (f *File) GetName() string {
-	if f != nil {
-		return f.Name
-	}
-	return ""
-}
-
-func (f *File) GetRows() []Row {
-	if f != nil {
-		return f.Rows
-	}
-	return []Row{}
-}
-
-// Store holds all CSV files loaded from a folder, keyed by ticket name.
+// Store holds all CSV files loaded from a folder, in file name order.
 type Store struct {
 	Files []*File
+}
+
+// Tickers returns the ticker name of every loaded file, in load order.
+//
+// AI-assisted (Claude Code): added so config.Validate can check overrides.
+func (s *Store) Tickers() []string {
+	tickers := make([]string, 0, len(s.Files))
+	for _, f := range s.Files {
+		tickers = append(tickers, f.Name)
+	}
+	return tickers
 }
 
 // LoadDir reads every .csv file in dir (non-recursive) into a Store.
@@ -112,11 +110,16 @@ func read(path string) (*File, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s:%d: parse value: %w", path, line, err)
 			}
+			if row.Value <= 0 {
+				return nil, fmt.Errorf("%s:%d: value must be > 0, got %v", path, line, row.Value)
+			}
 			row.Valid = true
 		}
 
 		f.Rows = append(f.Rows, row)
 	}
+	// force order of dates
+	slices.SortFunc(f.Rows, func(a, b Row) int { return a.Date.Compare(b.Date) })
 
 	return f, nil
 }

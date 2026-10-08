@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"flag"
+	"fmt"
 	"log"
 
 	"github.com/hirdrwit/oncorp/internal/config"
@@ -8,36 +11,52 @@ import (
 	"github.com/hirdrwit/oncorp/internal/runner"
 )
 
-const (
-	INPUT_DIR   = "input"
-	OUTPUT_DIR  = "output"
-	CONFIG_FILE = "config.yaml"
+var (
+	cfgPath = flag.String("config", "config.yaml", "path to check config")
+	inDir   = flag.String("in", "input", "directory of input CSVs")
+	outDir  = flag.String("out", "output", "directory for result CSVs")
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
 
-	store, err := icsv.LoadDir(INPUT_DIR)
+func run() (err error) {
+	flag.Parse()
+
+	cfg, err := config.Load(*cfgPath)
 	if err != nil {
-		log.Fatalf("unable to load csv input, %v", err)
+		return fmt.Errorf("unable to load config: %v", err)
 	}
 
-	resultWritter, err := icsv.NewResultWriter(OUTPUT_DIR)
+	store, err := icsv.LoadDir(*inDir)
 	if err != nil {
-		log.Fatalf("unable to create response writer %v", err)
+		return fmt.Errorf("unable to load input: %v", err)
 	}
-	defer resultWritter.Close()
 
-	cfg, err := config.Load(CONFIG_FILE)
+	if err := cfg.Validate(store.Tickers()); err != nil {
+		return fmt.Errorf("error validating config %q:\n%v", *cfgPath, err)
+	}
+
+	rw, err := icsv.NewResultWriter(*outDir)
 	if err != nil {
-		log.Fatalf("unable to load config %v", err)
+		return fmt.Errorf("unable to create result writer: %v", err)
 	}
+	defer func() {
+		if cerr := rw.Close(); cerr != nil {
+			err = errors.Join(err, fmt.Errorf("close results %q: %v", rw.Path, cerr))
+		}
+	}()
 
-	runner, err := runner.New(store, resultWritter, *cfg)
+	r, err := runner.New(store, rw, *cfg)
 	if err != nil {
-		log.Fatalf("unable to create new runner %v", err)
+		return fmt.Errorf("unable to create runner: %v", err)
 	}
 
-	if err = runner.Execute(); err != nil {
-		log.Fatalf("error executing script %v", err)
+	if err := r.Execute(); err != nil {
+		return fmt.Errorf("error running checks: %v", err)
 	}
+	return nil
 }
